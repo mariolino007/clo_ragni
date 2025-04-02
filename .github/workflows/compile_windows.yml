@@ -16,7 +16,7 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Eigen3 (custom config)
+    - name: Install Eigen3 (patched)
       shell: bash
       run: |
         mkdir -p deps
@@ -55,7 +55,7 @@ jobs:
           -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" \
           -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_POLICY_DEFAULT_CMP0048=NEW \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
           -Wno-dev
 
     - name: Build Project
@@ -68,7 +68,7 @@ jobs:
       shell: bash
       run: |
         cd src_py/distrib/G2lib/G2lib
-        python -c "import sys, os; sys.path.insert(0, os.getcwd()); import G2lib; print('Import success!')"
+        python -c "import sys, os; sys.path.insert(0, os.getcwd()); import G2lib; print('Import successful!')"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
