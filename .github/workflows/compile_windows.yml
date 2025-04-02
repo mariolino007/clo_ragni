@@ -61,7 +61,7 @@ jobs:
         python -c "import sys; sys.path.insert(0, '.'); import G2lib; print('Import successful')"
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # Aggiornato a v4
       with:
         name: G2lib-module
         path: src_py/distrib/G2lib/G2lib/*
