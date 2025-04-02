@@ -16,15 +16,16 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Eigen3
+    - name: Install Eigen3 (no Fortran)
       shell: bash
       run: |
         mkdir -p deps
         if [ -d "deps/Eigen3" ]; then
-          echo "Rimozione vecchia versione di Eigen3..."
           rm -rf deps/Eigen3
         fi
         git clone -b 3.4.0 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
+        # Disabilita Fortran esplicitamente
+        echo "set(CMAKE_DISABLE_FIND_PACKAGE_Fortran TRUE)" >> deps/Eigen3/CMakeLists.txt
 
     - name: Set up Python 3.11.8
       uses: actions/setup-python@v4
@@ -36,22 +37,19 @@ jobs:
       with:
         arch: x64
 
-    - name: Install CMake and Ninja
+    - name: Install CMake and Ninja (latest)
       uses: lukka/get-cmake@latest
 
-    - name: Get Python Executable Path
-      id: python-location
-      run: |
-        python -c "import sys; print(sys.executable)" > python_exe.txt
-        $pythonExe = Get-Content python_exe.txt
-        echo "path=$pythonExe" >> $env:GITHUB_OUTPUT
-
-    - name: Configure CMake
+    - name: Configure CMake (Disable Fortran)
       shell: bash
       run: |
         mkdir -p src_py/build
         cd src_py/build
-        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON
+        cmake .. -G "Ninja" \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" \
+          -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_Fortran=ON
 
     - name: Build Project
       shell: bash
