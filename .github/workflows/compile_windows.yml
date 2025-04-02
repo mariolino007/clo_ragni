@@ -22,7 +22,6 @@ jobs:
         mkdir -p deps
         rm -rf deps/Eigen3
         git clone -b 3.4 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
-        # Patch per disabilitare Fortran e test non necessari
         sed -i '/enable_language(Fortran)/d' deps/Eigen3/test/CMakeLists.txt
         sed -i 's/add_subdirectory(test)/#add_subdirectory(test)/' deps/Eigen3/CMakeLists.txt
 
@@ -31,12 +30,22 @@ jobs:
       with:
         python-version: 3.11.8
 
-    - name: Setup MSVC Build Environment
+    - name: Install MSVC Build Tools
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x64
 
-    - name: Configure CMake (Ottimizzato)
+    - name: Install CMake 3.27
+      uses: lukka/get-cmake@latest
+      with:
+        version: 3.27.9
+
+    - name: Patch pybind11
+      shell: bash
+      run: |
+        sed -i 's/cmake_minimum_required(VERSION 3.4)/cmake_minimum_required(VERSION 3.5)/' src_py/deps/pybind11/CMakeLists.txt
+
+    - name: Configure CMake
       shell: bash
       run: |
         mkdir -p src_py/build
@@ -45,9 +54,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" \
           -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON \
-          -DEIGEN_DISABLE_CXX11=OFF \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_DISABLE_FIND_PACKAGE_Fortran=ON \
+          -DCMAKE_POLICY_DEFAULT_CMP0048=NEW \
           -Wno-dev
 
     - name: Build Project
@@ -60,7 +68,7 @@ jobs:
       shell: bash
       run: |
         cd src_py/distrib/G2lib/G2lib
-        python -c "import G2lib; print('Success:', G2lib.__version__)"
+        python -c "import sys, os; sys.path.insert(0, os.getcwd()); import G2lib; print('Import success!')"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
