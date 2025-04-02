@@ -16,17 +16,17 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Eigen3 (patched)
+    - name: Install Eigen3
       shell: bash
       run: |
         mkdir -p deps
         rm -rf deps/Eigen3
         git clone -b 3.4 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
         sed -i '/enable_language(Fortran)/d' deps/Eigen3/test/CMakeLists.txt
-        sed -i 's/add_subdirectory(test)/#add_subdirectory(test)/' deps/Eigen3/CMakeLists.txt
 
     - name: Set up Python 3.11.8
       uses: actions/setup-python@v4
+      id: python-setup
       with:
         python-version: 3.11.8
 
@@ -35,27 +35,28 @@ jobs:
       with:
         arch: x64
 
-    - name: Install CMake 3.27
+    - name: Install CMake 3.28
       uses: lukka/get-cmake@latest
       with:
-        version: 3.27.9
+        version: 3.28.5
 
-    - name: Patch pybind11
-      shell: bash
-      run: |
-        sed -i 's/cmake_minimum_required(VERSION 3.4)/cmake_minimum_required(VERSION 3.5)/' src_py/deps/pybind11/CMakeLists.txt
-
-    - name: Configure CMake
+    - name: Configure CMake (Python fix)
       shell: bash
       run: |
         mkdir -p src_py/build
         cd src_py/build
+        
+        # Ottieni il percorso Python corretto
+        PYTHON_PATH="${{ steps.python-setup.outputs.python-path }}"
+        PYTHON_EXE="$PYTHON_PATH/python.exe"
+        
         cmake .. -G "Ninja" \
           -DCMAKE_BUILD_TYPE=Release \
-          -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" \
+          -DPYTHON_EXECUTABLE="$PYTHON_EXE" \
+          -DPython_EXECUTABLE="$PYTHON_EXE" \
           -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON \
           -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+          -Dpybind11_FIND_DEBUG=ON \
           -Wno-dev
 
     - name: Build Project
@@ -68,7 +69,7 @@ jobs:
       shell: bash
       run: |
         cd src_py/distrib/G2lib/G2lib
-        python -c "import sys, os; sys.path.insert(0, os.getcwd()); import G2lib; print('Import successful!')"
+        "${{ steps.python-setup.outputs.python-path }}/python" -c "import G2lib; print('Import success!')"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
