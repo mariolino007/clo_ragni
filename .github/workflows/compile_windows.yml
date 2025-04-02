@@ -16,31 +16,27 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Eigen3 (no Fortran)
+    - name: Install Eigen3 (custom config)
       shell: bash
       run: |
         mkdir -p deps
-        if [ -d "deps/Eigen3" ]; then
-          rm -rf deps/Eigen3
-        fi
-        git clone -b 3.4.0 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
-        # Disabilita Fortran esplicitamente
-        echo "set(CMAKE_DISABLE_FIND_PACKAGE_Fortran TRUE)" >> deps/Eigen3/CMakeLists.txt
+        rm -rf deps/Eigen3
+        git clone -b 3.4 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
+        # Patch per disabilitare Fortran e test non necessari
+        sed -i '/enable_language(Fortran)/d' deps/Eigen3/test/CMakeLists.txt
+        sed -i 's/add_subdirectory(test)/#add_subdirectory(test)/' deps/Eigen3/CMakeLists.txt
 
     - name: Set up Python 3.11.8
       uses: actions/setup-python@v4
       with:
         python-version: 3.11.8
 
-    - name: Install MSVC Build Tools
+    - name: Setup MSVC Build Environment
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x64
 
-    - name: Install CMake and Ninja (latest)
-      uses: lukka/get-cmake@latest
-
-    - name: Configure CMake (Disable Fortran)
+    - name: Configure CMake (Ottimizzato)
       shell: bash
       run: |
         mkdir -p src_py/build
@@ -49,22 +45,25 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" \
           -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON \
-          -DCMAKE_DISABLE_FIND_PACKAGE_Fortran=ON
+          -DEIGEN_DISABLE_CXX11=OFF \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_DISABLE_FIND_PACKAGE_Fortran=ON \
+          -Wno-dev
 
     - name: Build Project
       shell: bash
       run: |
         cd src_py/build
-        cmake --build . --config Release
+        cmake --build . --config Release --target install
 
     - name: Test Import
       shell: bash
       run: |
         cd src_py/distrib/G2lib/G2lib
-        python -c "import sys; sys.path.insert(0, '.'); import G2lib; print('Import successful')"
+        python -c "import G2lib; print('Success:', G2lib.__version__)"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: G2lib-module
+        name: G2lib-package
         path: src_py/distrib/G2lib/G2lib/*
