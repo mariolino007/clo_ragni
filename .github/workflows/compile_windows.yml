@@ -1,0 +1,67 @@
+name: Build Python Wrapper for Windows
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install Eigen3
+      run: |
+        mkdir -p deps
+        git clone -b 3.4.0 https://gitlab.com/libeigen/eigen.git deps/Eigen3
+
+    - name: Set up Python 3.11.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11.8
+
+    - name: Install MSVC Build Tools
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Install CMake and Ninja
+      uses: lukka/get-cmake@latest
+
+    - name: Get Python Executable Path
+      id: python-location
+      run: |
+        python -c "import sys; print(sys.executable)" > python_exe.txt
+        $pythonExe = Get-Content python_exe.txt
+        echo "path=$pythonExe" >> $env:GITHUB_OUTPUT
+
+    - name: Configure CMake
+      shell: bash
+      run: |
+        mkdir -p src_py/build
+        cd src_py/build
+        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="${{ steps.python-location.outputs.path }}" -DCLOTHOIDS_ENABLE_EIGEN_SOLVER=ON
+
+    - name: Build Project
+      shell: bash
+      run: |
+        cd src_py/build
+        cmake --build . --config Release
+
+    - name: Test Import
+      shell: bash
+      run: |
+        cd src_py/distrib/G2lib/G2lib
+        python -c "import sys; sys.path.insert(0, '.'); import G2lib; print('Import successful')"
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: G2lib-module
+        path: src_py/distrib/G2lib/G2lib/*
