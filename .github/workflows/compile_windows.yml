@@ -17,10 +17,14 @@ jobs:
         submodules: recursive
 
     - name: Install Eigen3
-      shell: bash  # Corretto qui
+      shell: bash
       run: |
         mkdir -p deps
-        git clone -b 3.4.0 https://gitlab.com/libeigen/eigen.git deps/Eigen3
+        if [ -d "deps/Eigen3" ]; then
+          echo "Rimozione vecchia versione di Eigen3..."
+          rm -rf deps/Eigen3
+        fi
+        git clone -b 3.4.0 --depth 1 https://gitlab.com/libeigen/eigen.git deps/Eigen3
 
     - name: Set up Python 3.11.8
       uses: actions/setup-python@v4
